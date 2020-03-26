@@ -4,13 +4,7 @@ import time
 import uuid
 
 from lib.crypt import get_password_key, verify_password, get_auth_token, verify_auth_token
-
-
-def construct_result(code=200, data={}):
-    return {
-        'code': code,
-        'data': data
-    }
+from lib.util import construct_result
 
 
 class AuthCheckResult:
@@ -54,7 +48,7 @@ class Handler:
 
     def check_auth(self, auth):
         username = auth.get('username')
-        token = auth.get('token')
+        token = auth.get('auth_token')
         if not username or not token:
             return AuthCheckResult.FAIL, ''
 
@@ -166,13 +160,90 @@ class Handler:
         return construct_result()
 
     def handle_like(self, request):
-        pass
+        CHECK_POST_EXISTS_QUERY = '''
+            SELECT post_id
+            FROM posts
+            WHERE post_id = ?
+        '''
+        ADD_LIKE_QUERY = '''
+            UPDATE posts
+            SET likes = likes + 1
+            WHERE post_id = ?
+        '''
+
+        post_id = request.get('post_id')
+        if not post_id:
+            return construct_result(400, 'Bad request')
+
+        cursor = self.db_conn.cursor()
+        cursor.execute(CHECK_POST_EXISTS_QUERY, (post_id,))
+        if cursor.fetchone() is None:
+            return construct_result(400, 'Post not found')
+
+        cursor.execute(ADD_LIKE_QUERY, (post_id,))
+        self.db_conn.commit()
+
+        return construct_result()
 
     def handle_get_user_posts(self, request):
-        pass
+        GET_USER_POSTS_QUERY = '''
+            SELECT
+                p.post_id as post_id,
+                p.post as post,
+                p.timestamp as timestamp,
+                p.likes as likes,
+                COALESCE(u.username, "") as username
+            FROM posts AS p
+            LEFT JOIN (
+                SELECT user_id, username
+                FROM users
+            ) AS u
+            ON p.user_id = u.user_id
+            WHERE p.user_id = ?
+            ORDER BY timestamp DESC
+        '''
+
+        username = request.get('username')
+        if not username:
+            return construct_result(400, 'Bad request')
+
+        user_id = self.get_user_id_by_username(username)
+
+        if user_id is None:
+            return construct_result(400, 'User not found')
+
+        cursor = self.db_conn.cursor()
+        cursor.execute(GET_USER_POSTS_QUERY, (user_id,))
+
+        return construct_result(200, [{'post_id': row[0], 'post': row[1], 'timestamp': row[2], 'likes': row[3], 'username': row[4]} for row in cursor.fetchall()])
 
     def handle_get_user_feed(self, request):
-        pass
+        GET_USER_FEED_QUERY = '''
+            SELECT
+                p.post_id as post_id,
+                p.post as post,
+                p.timestamp as timestamp,
+                p.likes as likes,
+                COALESCE(u.username, "") as username
+            FROM posts AS p
+            LEFT JOIN (
+                SELECT user_id, username
+                FROM users
+            ) AS u
+            ON p.user_id = u.user_id
+            INNER JOIN (
+                SELECT user_id
+                FROM follows
+                WHERE follower_id = ?
+            ) AS f
+            ON p.user_id = f.user_id
+            ORDER BY timestamp DESC
+        '''
+
+        cursor = self.db_conn.cursor()
+        cursor.execute(GET_USER_FEED_QUERY, (self.context['user_id'],))
+
+        return construct_result(200, [{'post_id': row[0], 'post': row[1], 'timestamp': row[2], 'likes': row[3], 'username': row[4]} for row in cursor.fetchall()])
 
     def handle_admin_info(self, request):
         pass

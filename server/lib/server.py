@@ -4,6 +4,7 @@ import traceback
 
 from lib.connection import Connection
 from lib.handlers import Handler
+from lib.util import construct_result
 
 
 class Server:
@@ -22,12 +23,19 @@ class Server:
     async def handle(self, reader, writer):
         try:
             addr = writer.get_extra_info('peername')
-            logging.info('Incoming request from {addr!r}')
+            logging.info('Incoming request from {}'.format(addr))
 
             conn = Connection(reader, writer)
 
             request = await conn.read()
-            response = Handler().handle_request(request)
+            try:
+                response = Handler().handle_request(request)
+            except KeyboardInterrupt:
+                raise
+            except Exception as e:
+                logging.exception('Unhandled exception during request handling occured: {}'.format(e))
+                traceback.print_exc()
+                response = construct_result(500, 'Error occured')
 
             await conn.write(response)
             await conn.close()
@@ -41,7 +49,7 @@ class Server:
         server = await asyncio.start_server(self.handle, self.host, self.port)
 
         addr = server.sockets[0].getsockname()
-        print(f'Serving on {addr}')
+        logging.info('Serving on {}'.format(addr))
 
         async with server:
             await server.serve_forever()
