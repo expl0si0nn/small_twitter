@@ -1,10 +1,8 @@
 import asyncio
 import logging
-import traceback
 
 from lib.connection import Connection
 from lib.handlers import Handler
-from lib.util import construct_result
 
 
 class Server:
@@ -28,14 +26,7 @@ class Server:
             conn = Connection(reader, writer)
 
             request = await conn.read()
-            try:
-                response = Handler().handle_request(request)
-            except KeyboardInterrupt:
-                raise
-            except Exception as e:
-                logging.exception('Unhandled exception during request handling occured: {}'.format(e))
-                traceback.print_exc()
-                response = construct_result(500, 'Error occured')
+            response = Handler().handle_request(request)
 
             await conn.write(response)
             await conn.close()
@@ -43,7 +34,6 @@ class Server:
             raise
         except Exception as e:
             logging.exception('Unhandled exception occured: {}'.format(e))
-            traceback.print_exc()
 
     async def loop(self):
         server = await asyncio.start_server(self.handle, self.host, self.port)

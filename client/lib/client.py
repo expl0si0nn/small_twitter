@@ -13,15 +13,24 @@ class Client:
 
         self.no_auth_check_handlers = ['signup', 'signin']
 
-        self.type_to_handler = {
-            'signup': (self.handle_signup, ('username', 'password')),
-            'signin': (self.handle_signin, ('username', 'password')),
-            'post': (self.handle_post, ('text',)),
-            'follow': (self.handle_follow, ('user_to_follow',)),
-            'like': (self.handle_like, ('post_id',)),
-            'get_user_posts': (self.handle_get_user_posts, ('username',)),
-            'get_user_feed': (self.handle_get_user_feed, ()),
-            'admin': (self.handle_admin_info, ()),
+        self.type_to_params = {
+            'signup': ('username', 'password'),
+            'signin': ('username', 'password'),
+            'post': ('text',),
+            'follow': ('username_to_follow',),
+            'like': ('post_id',),
+            'get_user_posts': ('username',),
+        }
+
+        self.type_to_callback = {
+            'signup': self.signup_callback,
+            'signin': self.signin_callback,
+            'post': self.post_callback,
+            'follow': self.follow_callback,
+            'like': self.like_callback,
+            'get_user_posts': self.get_user_posts_callback,
+            'get_user_feed': self.get_user_feed_callback,
+            'admin': self.admin_callback,
         }
 
         self.context = {}
@@ -34,11 +43,11 @@ class Client:
                 if action == 'exit':
                     print('Exiting')
                     return
-                if action not in self.type_to_handler:
+                if action not in self.type_to_callback:
                     print('Bad command')
                     continue
 
-                params = {'type': action}
+                request = {'type': action}
 
                 if action not in self.no_auth_check_handlers:
                     username = self.context.get('username')
@@ -47,17 +56,23 @@ class Client:
                         print('You should signin first')
                         continue
 
-                    params['auth'] = {'username': username, 'auth_token': auth_token}
+                    request['auth'] = {'username': username, 'auth_token': auth_token}
 
-                for param in self.type_to_handler[action][1]:
+                for param in self.type_to_params.get(action, ()):
                     print('Enter {}:'.format(param))
-                    params[param] = sys.stdin.readline().strip()
+                    request[param] = sys.stdin.readline().strip()
 
                 reader, writer = await asyncio.open_connection(self.server_host, self.server_port)
                 conn = Connection(reader, writer)
 
-                await self.type_to_handler[action][0](conn, params)
+                await conn.write(request)
+                response = await conn.read()
                 await conn.close()
+
+                if response.get('code') == 200:
+                    self.type_to_callback.get(action)(request, response.get('data', {}))
+                else:
+                    print('Error occured: {}'.format(response.get('data')))
             except KeyboardInterrupt:
                 raise
             except Exception as e:
@@ -65,74 +80,32 @@ class Client:
                 # traceback.print_exc(file=open('client.log', 'a'))
                 print('Something went wrong')
 
-    async def handle_signup(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
+    def signup_callback(self, request, response):
+        print('User {} registered'.format(request['username']))
 
-        if response.get('code') == 200:
-            print('User {} registered'.format(params['username']))
-        else:
-            print('Error occured: {}'.format(response.get('data')))
+    def signin_callback(self, request, response):
+        print('User {} logged in'.format(request['username']))
+        self.context['username'] = request['username']
+        self.context['auth_token'] = response.get('auth_token')
 
-    async def handle_signin(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
+    def post_callback(self, request, response):
+        print('Post successful')
 
-        if response.get('code') == 200:
-            print('User {} logged in'.format(params['username']))
-            self.context['username'] = params['username']
-            self.context['auth_token'] = response.get('data', {}).get('auth_token')
-        else:
-            print('Error occured: {}'.format(response.get('data')))
+    def follow_callback(self, request, response):
+        print('Followed {}'.format(request['username_to_follow']))
 
-    async def handle_post(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
+    def like_callback(self, request, response):
+        print('Liked {}'.format(request['post_id']))
 
-        if response.get('code') == 200:
-            print('Post successful')
-        else:
-            print('Error occured: {}'.format(response.get('data')))
+    def get_user_posts_callback(self, request, response):
+        print('Posts of user {}:'.format(request['username']))
+        for post in response:
+            print(post)
 
-    async def handle_follow(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
+    def get_user_feed_callback(self, request, response):
+        print('Posts feed:')
+        for post in response:
+            print(post)
 
-        if response.get('code') == 200:
-            print('Followed {}'.format(params['user_to_follow']))
-        else:
-            print('Error occured: {}'.format(response.get('data')))
-
-    async def handle_like(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
-
-        if response.get('code') == 200:
-            print('Liked {}'.format(params['post_id']))
-        else:
-            print('Error occured: {}'.format(response.get('data')))
-
-    async def handle_get_user_posts(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
-
-        if response.get('code') == 200:
-            print('Posts of user {}:'.format(params['username']))
-            for post in response.get('data', []):
-                print(post)
-        else:
-            print('Error occured: {}'.format(response.get('data')))
-
-    async def handle_get_user_feed(self, conn, params):
-        await conn.write(params)
-        response = await conn.read()
-
-        if response.get('code') == 200:
-            print('Posts feed:')
-            for post in response.get('data', []):
-                print(post)
-        else:
-            print('Error occured: {}'.format(response.get('data')))
-
-    async def handle_admin_info(self, conn, params):
+    def admin_callback(self, request, response):
         pass
