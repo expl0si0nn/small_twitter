@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from lib.auth import AuthHandler
 from lib.connection import Connection
 from lib.handlers import Handler
 
@@ -9,6 +10,7 @@ class Server:
     def __init__(self, host, port):
         self._host = host
         self._port = port
+        self.auth_handler = AuthHandler()
 
     @property
     def host(self):
@@ -26,7 +28,7 @@ class Server:
             conn = Connection(reader, writer)
 
             request = await conn.read()
-            response = Handler().handle_request(request)
+            response = Handler(self.auth_handler).handle_request(request)
 
             await conn.write(response)
             await conn.close()

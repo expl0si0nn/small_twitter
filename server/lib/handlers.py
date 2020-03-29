@@ -1,11 +1,6 @@
 import logging
 import time
 
-from lib.crypt import (
-    get_password_key, verify_password,
-    get_auth_token, verify_auth_token,
-)
-
 from lib.adapters import construct_posts_list_response
 from lib.exceptions import ItemNotFoundError
 from lib.transaction import Transaction
@@ -23,7 +18,9 @@ def construct_result(code=200, data={}):
 
 
 class Handler:
-    def __init__(self):
+    def __init__(self, auth_handler):
+        self.auth_handler = auth_handler
+
         self.no_auth_check_handlers = ['signup', 'signin']
         self.admin_check_handlers = ['admin']
 
@@ -56,7 +53,7 @@ class Handler:
                     except ItemNotFoundError:
                         return construct_result(404, 'User not found')
 
-                if not verify_auth_token(user.user_id, token):
+                if not self.auth_handler.verify_auth_token(user.user_id, token):
                     return construct_result(403, 'Bad auth token, you should sign in')
 
                 self.context['user_id'] = user.user_id
@@ -84,7 +81,7 @@ class Handler:
             if not no_users:
                 return construct_result(400, 'User already exists')
 
-            User(None, username, get_password_key(password)).create_me(tr.cursor)
+            User(None, username, self.auth_handler.get_password_key(password)).create_me(tr.cursor)
 
         return construct_result()
 
@@ -100,10 +97,10 @@ class Handler:
             except ItemNotFoundError:
                 return construct_result(404, 'User not found')
 
-            if not verify_password(password, user.password_key):
+            if not self.auth_handler.verify_password(password, user.password_key):
                 return construct_result(400, 'Bad password')
 
-        return construct_result(200, {'auth_token': get_auth_token(user.user_id)})
+        return construct_result(200, {'auth_token': self.auth_handler.get_auth_token(user.user_id)})
 
     def handle_post(self, request):
         text = request.get('text')
