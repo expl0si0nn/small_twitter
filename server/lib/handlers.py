@@ -29,9 +29,12 @@ class Handler:
             'signin': self.handle_signin,
             'post': self.handle_post,
             'follow': self.handle_follow,
+            'unfollow': self.handle_unfollow,
             'like': self.handle_like,
             'get_user_posts': self.handle_get_user_posts,
             'get_user_feed': self.handle_get_user_feed,
+            'get_followed_users': self.handle_get_followed_users,
+            'get_following_users': self.handle_get_following_users,
             'admin': self.handle_admin_info,
         }
 
