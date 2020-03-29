@@ -4,6 +4,14 @@ from lib.models.record import MetaRecord
 from lib.exceptions import ItemNotFoundError
 
 
+READ_BY_IDS_QUERY = '''
+    SELECT *
+    FROM {}
+    WHERE user_id = ?
+    AND follower_id = ?
+'''
+
+
 GET_FOLLOWING_USERS_QUERY = '''
     SELECT *
     FROM {}
@@ -31,6 +39,14 @@ class Follow(metaclass=MetaRecord):
         self.follow_id = follow_id or str(uuid.uuid4())
         self.user_id = user_id
         self.follower_id = follower_id
+
+    @classmethod
+    def read_by_ids(cls, cursor, user_id, follower_id):
+        cursor.execute(READ_BY_IDS_QUERY.format(Follow.table), (user_id, follower_id))
+        res = cursor.fetchone()
+        if res is None:
+            raise ItemNotFoundError()
+        return cls(*res)
 
     @classmethod
     def get_following_users(cls, cursor, user_id):

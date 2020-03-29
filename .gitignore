@@ -128,5 +128,5 @@ dmypy.json
 .pyre/
 
 # Custom
-.pem
-.db
+*.pem
+*.db

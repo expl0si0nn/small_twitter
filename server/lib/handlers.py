@@ -1,7 +1,7 @@
 import logging
 import time
 
-from lib.adapters import construct_posts_list_response
+from lib.adapters import construct_posts_list_response, construct_follows_list_response
 from lib.exceptions import ItemNotFoundError
 from lib.transaction import Transaction
 
@@ -129,6 +129,26 @@ class Handler:
 
         return construct_result()
 
+    def handle_unfollow(self, request):
+        username_to_unfollow = request.get('username_to_unfollow')
+        if not username_to_follow:
+            return construct_result(400, 'Bad request')
+
+        with Transaction() as tr:
+            try:
+                user_to_unfollow = User.read_by_name(tr.cursor, username_to_unfollow)
+            except ItemNotFoundError:
+                return construct_result(404, 'User not found')
+
+            try:
+                follow = Follow.read_by_ids(user_to_unfollow.user_id, self.context['user_id'])
+            except ItemNotFoundError:
+                return construct_result(400, 'User already not followed')
+
+            follow.delete_me()
+
+        return construct_result()
+
     def handle_like(self, request):
         post_id = request.get('post_id')
         if not post_id:
@@ -165,6 +185,36 @@ class Handler:
             posts = Post.get_user_feed(tr.cursor, self.context['user_id'])
 
         return construct_result(200, construct_posts_list_response(posts))
+
+    def handle_get_followed_users(self, request):
+        username = request.get('username')
+        if not username:
+            return construct_result(400, 'Bad request')
+
+        with Transaction() as tr:
+            try:
+                user = User.read_by_name(tr.cursor, username)
+            except ItemNotFoundError:
+                return construct_result(404, 'User not found')
+
+            follows = Follow.get_followed_users(tr.cursor, user.user_id)
+
+        return construct_result(200, construct_follows_list_response(follows))
+
+    def handle_get_following_users(self, request):
+        username = request.get('username')
+        if not username:
+            return construct_result(400, 'Bad request')
+
+        with Transaction() as tr:
+            try:
+                user = User.read_by_name(tr.cursor, username)
+            except ItemNotFoundError:
+                return construct_result(404, 'User not found')
+
+            follows = Follow.get_following_users(tr.cursor, user.user_id)
+
+        return construct_result(200, construct_follows_list_response(follows, followers_mode=True))
 
     def handle_admin_info(self, request):
         pass

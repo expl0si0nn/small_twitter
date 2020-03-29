@@ -25,6 +25,11 @@ def update_me(self, table, schema, primary_key, cursor):
     cursor.execute(query, [getattr(self, column) for column, _ in self.schema] + [getattr(self, primary_key)])
 
 
+def delete_me(self, table, primary_key, cursor):
+    query = 'DELETE FROM {} WHERE {} = ?'.format(table, primary_key)
+    cursor.execute(query, (getattr(self, primary_key),))
+
+
 @classmethod
 def read_by_pk(cls, table, primary_key, cursor, primary_key_value):
     query = 'SELECT * FROM {} WHERE {} = ?'.format(table, primary_key)
@@ -47,6 +52,7 @@ class MetaRecord(type):
         inst.to_dict = functools.partialmethod(to_dict, schema)
         inst.create_me = functools.partialmethod(create_me, table, schema)
         inst.update_me = functools.partialmethod(update_me, table, schema, primary_key)
+        inst.delete_me = functools.partialmethod(delete_me, table, primary_key)
         inst.read_by_pk = functools.partialmethod(read_by_pk, table, primary_key)
 
         return inst
