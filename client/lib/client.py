@@ -46,9 +46,16 @@ class Client:
             try:
                 print('Enter command name:')
                 action = sys.stdin.readline().strip()
+
                 if action == 'exit':
                     print('Exiting')
                     return
+                elif action == 'help':
+                    print('Available commands:\nhelp\nexit')
+                    for command in self.type_to_callback:
+                        print(command)
+                    continue
+
                 if action not in self.type_to_callback:
                     print('Bad command')
                     continue
