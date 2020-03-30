@@ -134,7 +134,7 @@ class Handler:
 
     def handle_unfollow(self, request):
         username_to_unfollow = request.get('username_to_unfollow')
-        if not username_to_follow:
+        if not username_to_unfollow:
             return construct_result(400, 'Bad request')
 
         with Transaction() as tr:
@@ -144,11 +144,11 @@ class Handler:
                 return construct_result(404, 'User not found')
 
             try:
-                follow = Follow.read_by_ids(user_to_unfollow.user_id, self.context['user_id'])
+                follow = Follow.read_by_ids(tr.cursor, user_to_unfollow.user_id, self.context['user_id'])
             except ItemNotFoundError:
                 return construct_result(400, 'User already not followed')
 
-            follow.delete_me()
+            follow.delete_me(tr.cursor)
 
         return construct_result()
 
@@ -220,4 +220,24 @@ class Handler:
         return construct_result(200, construct_follows_list_response(follows, followers_mode=True))
 
     def handle_admin_info(self, request):
-        pass
+        with Transaction() as tr:
+            try:
+                user = User.read_by_pk(tr.cursor, self.context['user_id'])
+            except ItemNotFoundError:
+                return construct_result(404, 'User not found')
+
+            if not user.is_admin:
+                return construct_result(403, 'Access denied')
+
+            users = User.read_all(tr.cursor)
+            posts = Post.read_all(tr.cursor)
+            follows = Follow.read_all(tr.cursor)
+
+        return construct_result(
+            200,
+            {
+                'users': [user.to_dict() for user in users],
+                'posts': [post.to_dict() for post in posts],
+                'folows': [follow.to_dict() for follow in follows],
+            }
+        )

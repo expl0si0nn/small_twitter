@@ -18,8 +18,11 @@ class Client:
             'signin': ('username', 'password'),
             'post': ('text',),
             'follow': ('username_to_follow',),
+            'unfollow': ('username_to_unfollow',),
             'like': ('post_id',),
             'get_user_posts': ('username',),
+            'get_followed_users': ('username',),
+            'get_following_users': ('username',),
         }
 
         self.type_to_callback = {
@@ -27,9 +30,12 @@ class Client:
             'signin': self.signin_callback,
             'post': self.post_callback,
             'follow': self.follow_callback,
+            'unfollow': self.unfollow_callback,
             'like': self.like_callback,
             'get_user_posts': self.get_user_posts_callback,
             'get_user_feed': self.get_user_feed_callback,
+            'get_followed_users': self.get_followed_users_callback,
+            'get_following_users': self.get_following_users_callback,
             'admin': self.admin_callback,
         }
 
@@ -94,6 +100,9 @@ class Client:
     def follow_callback(self, request, response):
         print('Followed {}'.format(request['username_to_follow']))
 
+    def unfollow_callback(self, request, response):
+        print('Unfollowed {}'.format(request['username_to_unfollow']))
+
     def like_callback(self, request, response):
         print('Liked {}'.format(request['post_id']))
 
@@ -107,5 +116,18 @@ class Client:
         for post in response:
             print(post)
 
+    def get_followed_users_callback(self, request, response):
+        print('Users followed by {}:'.format(request['username']))
+        for user in response:
+            print(user)
+
+    def get_following_users_callback(self, request, response):
+        print('Users following {}:'.format(request['username']))
+        for user in response:
+            print(user)
+
     def admin_callback(self, request, response):
-        pass
+        for k, v in response.items():
+            print('All {}:'.format(k))
+            for item in v:
+                print(item)

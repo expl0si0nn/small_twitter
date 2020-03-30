@@ -40,6 +40,13 @@ def read_by_pk(cls, table, primary_key, cursor, primary_key_value):
     return cls(*res)
 
 
+@classmethod
+def read_all(cls, table, cursor):
+    query = 'SELECT * FROM {}'.format(table)
+    cursor.execute(query)
+    return [cls(*row) for row in cursor.fetchall()]
+
+
 class MetaRecord(type):
     def __new__(cls, name, bases, dct):
         inst = super().__new__(cls, name, bases, dct)
@@ -54,5 +61,6 @@ class MetaRecord(type):
         inst.update_me = functools.partialmethod(update_me, table, schema, primary_key)
         inst.delete_me = functools.partialmethod(delete_me, table, primary_key)
         inst.read_by_pk = functools.partialmethod(read_by_pk, table, primary_key)
+        inst.read_all = functools.partialmethod(read_all, table)
 
         return inst
