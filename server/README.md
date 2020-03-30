@@ -14,7 +14,7 @@ python3 __main__.py init_db [--force]
 ```
 python3 __main__.py modify_admins --username USERNAME [--new_role NEW_ROLE]
 ```
-Описание аргументов можно посмотреть так:
+Описание аргументов можно посмотреть так (mode - один из run_server, init_db, modify_admins):
 ```
 python3 __main__.py mode --help
 ```
