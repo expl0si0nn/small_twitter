@@ -34,9 +34,3 @@ class User(metaclass=MetaRecord):
         if res is None:
             raise ItemNotFoundError()
         return cls(*res)
-
-
-
-
-
-
